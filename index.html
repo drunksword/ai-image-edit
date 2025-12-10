@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Image Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <svg class="logo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span class="logo-text">Gemini Studio</span>
+                </div>
+                <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M15 18L9 12L15 6"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <button class="new-chat-btn" id="newChatBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5V19M5 12H19"/>
+                </svg>
+                <span>New Chat</span>
+            </button>
+            
+            <div class="chat-history" id="chatHistory">
+                <div class="history-section">
+                    <h3>Recent</h3>
+                    <div class="history-list" id="historyList">
+                        <!-- Chat history items will be added here -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <button class="settings-btn" id="settingsBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M12 1V3M12 21V23M4.22 4.22L5.64 5.64M18.36 18.36L19.78 19.78M1 12H3M21 12H23M4.22 19.78L5.64 18.36M18.36 5.64L19.78 4.22"/>
+                    </svg>
+                    <span>Settings</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Mobile Header -->
+            <header class="mobile-header">
+                <button class="menu-btn" id="menuBtn" aria-label="Open menu">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 12H21M3 6H21M3 18H21"/>
+                    </svg>
+                </button>
+                <div class="mobile-logo">
+                    <svg class="logo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2"/>
+                        <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2"/>
+                        <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                    <span>Gemini Studio</span>
+                </div>
+                <div class="header-spacer"></div>
+            </header>
+
+            <!-- Chat Area -->
+            <div class="chat-area" id="chatArea">
+                <!-- Welcome Screen -->
+                <div class="welcome-screen" id="welcomeScreen">
+                    <div class="welcome-content">
+                        <div class="welcome-icon">
+                            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M24 4L4 14L24 24L44 14L24 4Z" fill="url(#grad1)" stroke="url(#grad2)" stroke-width="2"/>
+                                <path d="M4 34L24 44L44 34" stroke="url(#grad2)" stroke-width="2" stroke-linecap="round"/>
+                                <path d="M4 24L24 34L44 24" stroke="url(#grad2)" stroke-width="2" stroke-linecap="round"/>
+                                <defs>
+                                    <linearGradient id="grad1" x1="4" y1="4" x2="44" y2="44">
+                                        <stop offset="0%" stop-color="#8B5CF6"/>
+                                        <stop offset="50%" stop-color="#EC4899"/>
+                                        <stop offset="100%" stop-color="#F59E0B"/>
+                                    </linearGradient>
+                                    <linearGradient id="grad2" x1="4" y1="4" x2="44" y2="44">
+                                        <stop offset="0%" stop-color="#8B5CF6"/>
+                                        <stop offset="100%" stop-color="#EC4899"/>
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                        </div>
+                        <h1 class="welcome-title">
+                            <span class="gradient-text">Create & Edit Images</span>
+                            <br>with AI
+                        </h1>
+                        <p class="welcome-subtitle">Upload an image to edit, or describe what you want to create</p>
+                        
+                        <div class="suggestion-cards">
+                            <button class="suggestion-card" data-prompt="Create a cyberpunk cityscape at night with neon lights">
+                                <span class="card-icon">🌃</span>
+                                <span class="card-text">Cyberpunk cityscape</span>
+                            </button>
+                            <button class="suggestion-card" data-prompt="Generate a serene Japanese garden with cherry blossoms">
+                                <span class="card-icon">🌸</span>
+                                <span class="card-text">Japanese garden</span>
+                            </button>
+                            <button class="suggestion-card" data-prompt="Create a portrait in the style of Van Gogh">
+                                <span class="card-icon">🎨</span>
+                                <span class="card-text">Van Gogh style</span>
+                            </button>
+                            <button class="suggestion-card" data-prompt="Design a futuristic product concept">
+                                <span class="card-icon">🚀</span>
+                                <span class="card-text">Product concept</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Messages Container -->
+                <div class="messages-container" id="messagesContainer">
+                    <!-- Messages will be added here -->
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="input-area">
+                <div class="input-container">
+                    <!-- Image Preview -->
+                    <div class="image-preview-container" id="imagePreviewContainer">
+                        <div class="image-preview" id="imagePreview">
+                            <img id="previewImg" src="" alt="Preview">
+                            <button class="remove-image-btn" id="removeImageBtn" aria-label="Remove image">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M18 6L6 18M6 6L18 18"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Input Box -->
+                    <div class="input-box">
+                        <button class="attach-btn" id="attachBtn" aria-label="Attach image">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                <circle cx="8.5" cy="8.5" r="1.5"/>
+                                <path d="M21 15L16 10L5 21"/>
+                            </svg>
+                        </button>
+                        <input type="file" id="fileInput" accept="image/*" hidden>
+                        
+                        <textarea 
+                            id="promptInput" 
+                            placeholder="Describe what you want to create or how to edit the image..."
+                            rows="1"
+                        ></textarea>
+                        
+                        <button class="send-btn" id="sendBtn" disabled aria-label="Send message">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 2L11 13M22 2L15 22L11 13L2 9L22 2Z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <p class="input-hint">
+                        Powered by Gemini 3 Pro • 
+                        <span class="shortcut">Press Enter to send</span>
+                    </p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Settings Modal -->
+        <div class="modal-overlay" id="settingsModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h2>Settings</h2>
+                    <button class="modal-close" id="closeSettings">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 6L6 18M6 6L18 18"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-content">
+                    <div class="setting-group">
+                        <label for="apiKeyInput">OpenRouter API Key</label>
+                        <input type="password" id="apiKeyInput" placeholder="sk-or-v1-...">
+                        <p class="setting-hint">Get your API key from <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a></p>
+                    </div>
+                    <div class="setting-group">
+                        <label for="modelSelect">Model</label>
+                        <select id="modelSelect">
+                            <option value="google/gemini-3-pro-image-preview">Gemini 3 Pro Image Preview</option>
+                            <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash (Free)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" id="cancelSettings">Cancel</button>
+                    <button class="btn-primary" id="saveSettings">Save Settings</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Drop Zone Overlay -->
+        <div class="drop-zone-overlay" id="dropZone">
+            <div class="drop-zone-content">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15V19C21 20.1 20.1 21 19 21H5C3.9 21 3 20.1 3 19V15"/>
+                    <path d="M17 8L12 3L7 8"/>
+                    <path d="M12 3V15"/>
+                </svg>
+                <p>Drop your image here</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Generating image...</p>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
