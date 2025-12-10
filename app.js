@@ -1,6 +1,12 @@
 /**
  * Gemini Image Studio
  * A chat-based image generation and editing app using OpenRouter API
+ * 
+ * SECURITY NOTES:
+ * - API key is stored in localStorage (client-side only)
+ * - API key is ONLY sent to https://openrouter.ai (official API endpoint)
+ * - No third-party analytics or tracking
+ * - No server-side component - all data stays in your browser
  */
 
 // ========================================
@@ -289,7 +295,9 @@ function renderMessage(role, content, imageUrl = null, reasoning = null) {
     }
     
     if (content) {
-        contentHtml += `<div class="message-text">${escapeHtml(content)}</div>`;
+        // Use formatted text for assistant messages (safe), escape HTML for user messages (security)
+        const formattedContent = role === 'assistant' ? formatMessageText(content) : escapeHtml(content);
+        contentHtml += `<div class="message-text">${formattedContent}</div>`;
     }
     
     if (imageUrl) {
@@ -558,11 +566,15 @@ async function sendMessage() {
         saveCurrentChat();
     } catch (error) {
         removeTypingIndicator();
-        console.error('API Error:', error);
+        // Security: Only log error message, not full error object which might contain sensitive data
+        console.error('API Error:', error.message);
+        
+        // Security: Sanitize error message to avoid exposing API key
+        const safeErrorMessage = error.message?.replace(/sk-or-[a-zA-Z0-9-]+/g, '[API_KEY_HIDDEN]') || 'Unknown error';
         
         const errorMessage = {
             role: 'assistant',
-            content: `Error: ${error.message}. Please check your API key and try again.`,
+            content: `Error: ${safeErrorMessage}. Please check your API key and try again.`,
             image: null
         };
         state.messages.push(errorMessage);
@@ -670,6 +682,16 @@ function parseAPIResponse(data) {
     let image = null;
     let reasoning = '';
     
+    // Check for content policy blocks
+    const finishReason = choice.native_finish_reason || choice.finish_reason;
+    if (finishReason === 'IMAGE_PROHIBITED_CONTENT') {
+        return {
+            text: '⚠️ **Image generation blocked by content policy**\n\nGoogle\'s safety filters prevented this image from being generated. Possible reasons:\n\n• Editing photos of real people may be restricted\n• Brand names/trademarks (Nike, Adidas, etc.) may be blocked\n• Content may have been flagged as potentially sensitive\n\n**Suggestions:**\n• Try describing the item generically (e.g., "sports headband" instead of "Nike headband")\n• Use illustrations or AI-generated images instead of real photos\n• Rephrase your request to avoid specific brands or identifiable people',
+            image: null,
+            reasoning: message.reasoning || ''
+        };
+    }
+    
     // Handle text content
     if (typeof message.content === 'string') {
         text = message.content;
@@ -701,6 +723,11 @@ function parseAPIResponse(data) {
     // If no text content but has reasoning, use a summary
     if (!text && reasoning) {
         text = "Image generated successfully.";
+    }
+    
+    // Check if image was expected but not generated
+    if (!image && !text) {
+        text = "The model processed your request but didn't generate an image. Try rephrasing your prompt.";
     }
     
     return { text, image, reasoning };
@@ -736,6 +763,25 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function formatMessageText(text) {
+    // Escape HTML first
+    let formatted = escapeHtml(text);
+    
+    // Then apply simple markdown-like formatting
+    formatted = formatted
+        // Bold: **text**
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        // Italic: *text*
+        .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+        // Line breaks
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>')
+        // Bullet points: • item
+        .replace(/•\s*/g, '<span class="bullet">•</span> ');
+    
+    return '<p>' + formatted + '</p>';
 }
 
 // ========================================
