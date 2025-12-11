@@ -12,11 +12,12 @@
 // ========================================
 // State Management
 // ========================================
+const MAX_IMAGES = 10;
+
 const state = {
     apiKey: localStorage.getItem('openrouter_api_key') || '',
     model: localStorage.getItem('selected_model') || 'google/gemini-3-pro-image-preview',
-    currentImage: null,
-    currentImageBase64: null,
+    currentImages: [], // Array of { file, base64 }
     messages: [],
     chatHistory: JSON.parse(localStorage.getItem('chat_history') || '[]'),
     currentChatId: null,
@@ -48,8 +49,6 @@ const elements = {
     attachBtn: document.getElementById('attachBtn'),
     fileInput: document.getElementById('fileInput'),
     imagePreviewContainer: document.getElementById('imagePreviewContainer'),
-    previewImg: document.getElementById('previewImg'),
-    removeImageBtn: document.getElementById('removeImageBtn'),
     
     // Settings Modal
     settingsModal: document.getElementById('settingsModal'),
@@ -108,7 +107,6 @@ function setupEventListeners() {
     // Image upload
     elements.attachBtn.addEventListener('click', () => elements.fileInput.click());
     elements.fileInput.addEventListener('change', handleFileSelect);
-    elements.removeImageBtn.addEventListener('click', removeImage);
     
     // Drag and drop
     document.addEventListener('dragenter', handleDragEnter);
@@ -179,13 +177,12 @@ function removeSidebarOverlay() {
 function startNewChat() {
     state.currentChatId = null;
     state.messages = [];
-    state.currentImage = null;
-    state.currentImageBase64 = null;
+    state.currentImages = [];
     
     elements.welcomeScreen.style.display = 'flex';
     elements.messagesContainer.classList.remove('active');
     elements.messagesContainer.innerHTML = '';
-    elements.imagePreviewContainer.classList.remove('active');
+    clearImagePreviews();
     elements.promptInput.value = '';
     handleInputChange();
     
@@ -219,7 +216,18 @@ function loadChat(chatId) {
     elements.messagesContainer.innerHTML = '';
     
     state.messages.forEach(msg => {
-        renderMessage(msg.role, msg.content, msg.image, msg.reasoning);
+        // Support both old format (msg.image) and new format (msg.images)
+        let images = msg.images || (msg.image ? [msg.image] : []);
+        
+        // Show placeholder if images were removed from storage
+        let content = msg.content || '';
+        if (msg.imageCount && msg.imageCount > 0 && images.length === 0) {
+            content = content ? content + `\n\n📷 [${msg.imageCount} image(s) - not stored in history]` : `📷 [${msg.imageCount} image(s) - not stored in history]`;
+        } else if (msg.hadImage && !msg.image) {
+            content = content ? content + '\n\n📷 [Image - not stored in history]' : '📷 [Image - not stored in history]';
+        }
+        
+        renderMessage(msg.role, content, images, msg.reasoning);
     });
     
     renderChatHistory();
@@ -229,6 +237,23 @@ function loadChat(chatId) {
 function saveCurrentChat() {
     if (state.messages.length === 0) return;
     
+    // Create a lightweight version of messages without base64 images
+    const lightMessages = state.messages.map(msg => {
+        const lightMsg = { ...msg };
+        
+        // Replace base64 images with placeholder to save storage
+        if (lightMsg.images && Array.isArray(lightMsg.images)) {
+            lightMsg.imageCount = lightMsg.images.length;
+            lightMsg.images = []; // Don't store actual images in history
+        }
+        if (lightMsg.image) {
+            lightMsg.hadImage = true;
+            lightMsg.image = null;
+        }
+        
+        return lightMsg;
+    });
+    
     if (!state.currentChatId) {
         state.currentChatId = Date.now().toString();
         const firstMessage = state.messages[0]?.content || 'New Chat';
@@ -237,28 +262,50 @@ function saveCurrentChat() {
         state.chatHistory.unshift({
             id: state.currentChatId,
             title,
-            messages: state.messages,
+            messages: lightMessages,
             createdAt: Date.now()
         });
     } else {
         const chatIndex = state.chatHistory.findIndex(c => c.id === state.currentChatId);
         if (chatIndex !== -1) {
-            state.chatHistory[chatIndex].messages = state.messages;
+            state.chatHistory[chatIndex].messages = lightMessages;
         }
     }
     
     // Keep only last 50 chats
     state.chatHistory = state.chatHistory.slice(0, 50);
-    localStorage.setItem('chat_history', JSON.stringify(state.chatHistory));
+    
+    try {
+        localStorage.setItem('chat_history', JSON.stringify(state.chatHistory));
+    } catch (e) {
+        // If still too large, keep fewer chats
+        console.warn('Storage quota exceeded, reducing history...');
+        state.chatHistory = state.chatHistory.slice(0, 20);
+        try {
+            localStorage.setItem('chat_history', JSON.stringify(state.chatHistory));
+        } catch (e2) {
+            // Last resort: clear history
+            state.chatHistory = [];
+            localStorage.removeItem('chat_history');
+            console.error('Had to clear chat history due to storage limits');
+        }
+    }
+    
     renderChatHistory();
 }
 
 // ========================================
 // Message Functions
 // ========================================
-function renderMessage(role, content, imageUrl = null, reasoning = null) {
+function renderMessage(role, content, images = null, reasoning = null) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${role}`;
+    
+    // Normalize images to array
+    let imageArray = [];
+    if (images) {
+        imageArray = Array.isArray(images) ? images : [images];
+    }
     
     const avatarHtml = role === 'user' 
         ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -300,31 +347,38 @@ function renderMessage(role, content, imageUrl = null, reasoning = null) {
         contentHtml += `<div class="message-text">${formattedContent}</div>`;
     }
     
-    if (imageUrl) {
-        // Store image URL in a data attribute to avoid issues with long base64 strings
-        const imageId = 'img-' + Date.now();
-        contentHtml += `
-            <div class="message-image">
-                <img id="${imageId}" src="${imageUrl}" alt="Generated image" loading="lazy">
-            </div>
-            <div class="message-image-actions">
-                <button class="image-action-btn" onclick="downloadImageById('${imageId}')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 15V19C21 20.1 20.1 21 19 21H5C3.9 21 3 20.1 3 19V15"/>
-                        <path d="M7 10L12 15L17 10"/>
-                        <path d="M12 15V3"/>
-                    </svg>
-                    Download
-                </button>
-                <button class="image-action-btn" onclick="useAsInputById('${imageId}')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M11 4H4V20H20V13"/>
-                        <path d="M18.5 2.5C19.33 1.67 20.67 1.67 21.5 2.5C22.33 3.33 22.33 4.67 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z"/>
-                    </svg>
-                    Edit this
-                </button>
-            </div>
-        `;
+    // Render images (support multiple)
+    if (imageArray.length > 0) {
+        const isMultiple = imageArray.length > 1;
+        contentHtml += `<div class="message-images ${isMultiple ? 'multiple' : 'single'}">`;
+        
+        imageArray.forEach((imgUrl, index) => {
+            const imageId = 'img-' + Date.now() + '-' + index;
+            contentHtml += `
+                <div class="message-image">
+                    <img id="${imageId}" src="${imgUrl}" alt="Image ${index + 1}" loading="lazy">
+                    ${role === 'assistant' ? `
+                        <div class="image-overlay-actions">
+                            <button class="image-overlay-btn" onclick="downloadImageById('${imageId}')" title="Download">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15V19C21 20.1 20.1 21 19 21H5C3.9 21 3 20.1 3 19V15"/>
+                                    <path d="M7 10L12 15L17 10"/>
+                                    <path d="M12 15V3"/>
+                                </svg>
+                            </button>
+                            <button class="image-overlay-btn" onclick="useAsInputById('${imageId}')" title="Edit">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M11 4H4V20H20V13"/>
+                                    <path d="M18.5 2.5C19.33 1.67 20.67 1.67 21.5 2.5C22.33 3.33 22.33 4.67 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        });
+        
+        contentHtml += `</div>`;
     }
     
     messageDiv.innerHTML = `
@@ -394,8 +448,11 @@ function scrollToBottom() {
 // ========================================
 function handleInputChange() {
     autoResizeTextarea();
-    const hasContent = elements.promptInput.value.trim() || state.currentImageBase64;
+    const hasContent = elements.promptInput.value.trim() || state.currentImages.length > 0;
     elements.sendBtn.disabled = !hasContent;
+    
+    // Update image count indicator
+    updateImageCountIndicator();
 }
 
 function handleKeyDown(e) {
@@ -417,8 +474,10 @@ function autoResizeTextarea() {
 // Image Functions
 // ========================================
 function handleFileSelect(e) {
-    const file = e.target.files?.[0];
-    if (file) processImageFile(file);
+    const files = Array.from(e.target.files || []);
+    files.forEach(file => processImageFile(file));
+    // Reset input to allow selecting the same file again
+    e.target.value = '';
 }
 
 function handleDragEnter(e) {
@@ -441,10 +500,12 @@ function handleDrop(e) {
     e.preventDefault();
     elements.dropZone.classList.remove('active');
     
-    const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-        processImageFile(file);
-    }
+    const files = Array.from(e.dataTransfer.files || []);
+    files.forEach(file => {
+        if (file.type.startsWith('image/')) {
+            processImageFile(file);
+        }
+    });
 }
 
 function processImageFile(file) {
@@ -453,24 +514,82 @@ function processImageFile(file) {
         return;
     }
     
+    if (state.currentImages.length >= MAX_IMAGES) {
+        alert(`Maximum ${MAX_IMAGES} images allowed. Remove some images first.`);
+        return;
+    }
+    
     const reader = new FileReader();
     reader.onload = (e) => {
-        state.currentImage = file;
-        state.currentImageBase64 = e.target.result;
-        elements.previewImg.src = state.currentImageBase64;
-        elements.imagePreviewContainer.classList.add('active');
+        const imageData = {
+            id: Date.now() + Math.random().toString(36).substr(2, 9),
+            file: file,
+            base64: e.target.result
+        };
+        state.currentImages.push(imageData);
+        renderImagePreviews();
         handleInputChange();
     };
     reader.readAsDataURL(file);
 }
 
-function removeImage() {
-    state.currentImage = null;
-    state.currentImageBase64 = null;
-    elements.imagePreviewContainer.classList.remove('active');
-    elements.fileInput.value = '';
+function removeImage(imageId) {
+    state.currentImages = state.currentImages.filter(img => img.id !== imageId);
+    renderImagePreviews();
     handleInputChange();
 }
+
+function clearImagePreviews() {
+    state.currentImages = [];
+    elements.imagePreviewContainer.classList.remove('active');
+    elements.imagePreviewContainer.innerHTML = '';
+    elements.fileInput.value = '';
+}
+
+function renderImagePreviews() {
+    const container = elements.imagePreviewContainer;
+    
+    if (state.currentImages.length === 0) {
+        container.classList.remove('active');
+        container.innerHTML = '';
+        return;
+    }
+    
+    container.classList.add('active');
+    container.innerHTML = state.currentImages.map(img => `
+        <div class="image-preview-item" data-id="${img.id}">
+            <img src="${img.base64}" alt="Preview">
+            <button class="remove-image-btn" onclick="removeImageById('${img.id}')" aria-label="Remove image">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6L18 18"/>
+                </svg>
+            </button>
+        </div>
+    `).join('');
+}
+
+function updateImageCountIndicator() {
+    let indicator = document.querySelector('.image-count-indicator');
+    
+    if (state.currentImages.length === 0) {
+        if (indicator) indicator.remove();
+        return;
+    }
+    
+    if (!indicator) {
+        indicator = document.createElement('span');
+        indicator.className = 'image-count-indicator';
+        elements.attachBtn.appendChild(indicator);
+    }
+    
+    indicator.textContent = state.currentImages.length;
+    indicator.classList.toggle('full', state.currentImages.length >= MAX_IMAGES);
+}
+
+// Global function for onclick handler
+window.removeImageById = function(imageId) {
+    removeImage(imageId);
+};
 
 // Global functions for button actions
 window.downloadImage = function(dataUrl) {
@@ -491,9 +610,17 @@ window.downloadImageById = function(imageId) {
 };
 
 window.useAsInput = function(dataUrl) {
-    state.currentImageBase64 = dataUrl;
-    elements.previewImg.src = dataUrl;
-    elements.imagePreviewContainer.classList.add('active');
+    if (state.currentImages.length >= MAX_IMAGES) {
+        alert(`Maximum ${MAX_IMAGES} images allowed. Remove some images first.`);
+        return;
+    }
+    const imageData = {
+        id: Date.now() + Math.random().toString(36).substr(2, 9),
+        file: null,
+        base64: dataUrl
+    };
+    state.currentImages.push(imageData);
+    renderImagePreviews();
     handleInputChange();
     elements.promptInput.focus();
 };
@@ -501,9 +628,17 @@ window.useAsInput = function(dataUrl) {
 window.useAsInputById = function(imageId) {
     const img = document.getElementById(imageId);
     if (img && img.src) {
-        state.currentImageBase64 = img.src;
-        elements.previewImg.src = img.src;
-        elements.imagePreviewContainer.classList.add('active');
+        if (state.currentImages.length >= MAX_IMAGES) {
+            alert(`Maximum ${MAX_IMAGES} images allowed. Remove some images first.`);
+            return;
+        }
+        const imageData = {
+            id: Date.now() + Math.random().toString(36).substr(2, 9),
+            file: null,
+            base64: img.src
+        };
+        state.currentImages.push(imageData);
+        renderImagePreviews();
         handleInputChange();
         elements.promptInput.focus();
     }
@@ -516,9 +651,9 @@ async function sendMessage() {
     if (state.isGenerating) return;
     
     const prompt = elements.promptInput.value.trim();
-    const hasImage = !!state.currentImageBase64;
+    const hasImages = state.currentImages.length > 0;
     
-    if (!prompt && !hasImage) return;
+    if (!prompt && !hasImages) return;
     
     if (!state.apiKey) {
         openSettings();
@@ -530,19 +665,21 @@ async function sendMessage() {
     elements.welcomeScreen.style.display = 'none';
     elements.messagesContainer.classList.add('active');
     
+    // Collect images to send
+    const imagesToSend = state.currentImages.map(img => img.base64);
+    
     // Add user message
     const userMessage = {
         role: 'user',
         content: prompt,
-        image: hasImage ? state.currentImageBase64 : null
+        images: hasImages ? imagesToSend : []  // Changed from single image to array
     };
     state.messages.push(userMessage);
-    renderMessage('user', prompt, hasImage ? state.currentImageBase64 : null);
+    renderMessage('user', prompt, hasImages ? imagesToSend : []);
     
     // Clear input
     elements.promptInput.value = '';
-    const imageToSend = state.currentImageBase64;
-    removeImage();
+    clearImagePreviews();
     handleInputChange();
     
     // Show typing indicator
@@ -551,7 +688,7 @@ async function sendMessage() {
     elements.loadingOverlay.classList.add('active');
     
     try {
-        const response = await callOpenRouterAPI(prompt, imageToSend);
+        const response = await callOpenRouterAPI(prompt, imagesToSend);
         removeTypingIndicator();
         
         const assistantMessage = {
@@ -585,8 +722,8 @@ async function sendMessage() {
     }
 }
 
-async function callOpenRouterAPI(prompt, imageBase64 = null) {
-    const messages = buildAPIMessages(prompt, imageBase64);
+async function callOpenRouterAPI(prompt, images = []) {
+    const messages = buildAPIMessages(prompt, images);
     
     const requestBody = {
         model: state.model,
@@ -619,7 +756,7 @@ async function callOpenRouterAPI(prompt, imageBase64 = null) {
     return parseAPIResponse(data);
 }
 
-function buildAPIMessages(prompt, imageBase64) {
+function buildAPIMessages(prompt, images = []) {
     const messages = [];
     
     // Add conversation history (last 10 messages for context)
@@ -632,7 +769,17 @@ function buildAPIMessages(prompt, imageBase64) {
             content.push({ type: 'text', text: msg.content });
         }
         
-        if (msg.image && msg.role === 'user') {
+        // Handle multiple images in history (new format)
+        if (msg.images && Array.isArray(msg.images) && msg.role === 'user') {
+            msg.images.forEach(imgBase64 => {
+                content.push({
+                    type: 'image_url',
+                    image_url: { url: imgBase64 }
+                });
+            });
+        }
+        // Backward compatibility: handle single image (old format)
+        else if (msg.image && msg.role === 'user') {
             content.push({
                 type: 'image_url',
                 image_url: { url: msg.image }
@@ -654,10 +801,13 @@ function buildAPIMessages(prompt, imageBase64) {
         currentContent.push({ type: 'text', text: prompt });
     }
     
-    if (imageBase64) {
-        currentContent.push({
-            type: 'image_url',
-            image_url: { url: imageBase64 }
+    // Add all images
+    if (images && images.length > 0) {
+        images.forEach(imgBase64 => {
+            currentContent.push({
+                type: 'image_url',
+                image_url: { url: imgBase64 }
+            });
         });
     }
     
@@ -755,6 +905,17 @@ function saveSettings() {
     
     closeSettings();
 }
+
+// Clear all chat history
+window.clearAllHistory = function() {
+    if (confirm('Clear all chat history? This cannot be undone.')) {
+        state.chatHistory = [];
+        localStorage.removeItem('chat_history');
+        renderChatHistory();
+        startNewChat();
+        console.log('Chat history cleared!');
+    }
+};
 
 // ========================================
 // Utility Functions

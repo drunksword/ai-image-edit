@@ -135,16 +135,9 @@
             <!-- Input Area -->
             <div class="input-area">
                 <div class="input-container">
-                    <!-- Image Preview -->
+                    <!-- Image Preview (Multiple) -->
                     <div class="image-preview-container" id="imagePreviewContainer">
-                        <div class="image-preview" id="imagePreview">
-                            <img id="previewImg" src="" alt="Preview">
-                            <button class="remove-image-btn" id="removeImageBtn" aria-label="Remove image">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M18 6L6 18M6 6L18 18"/>
-                                </svg>
-                            </button>
-                        </div>
+                        <!-- Image previews will be rendered dynamically -->
                     </div>
                     
                     <!-- Input Box -->
@@ -156,7 +149,7 @@
                                 <path d="M21 15L16 10L5 21"/>
                             </svg>
                         </button>
-                        <input type="file" id="fileInput" accept="image/*" hidden>
+                        <input type="file" id="fileInput" accept="image/*" multiple hidden>
                         
                         <textarea 
                             id="promptInput" 
@@ -172,7 +165,7 @@
                     </div>
                     
                     <p class="input-hint">
-                        Powered by Gemini 3 Pro • 
+                        Powered by Gemini 3 Pro • Up to 10 images •
                         <span class="shortcut">Press Enter to send</span>
                     </p>
                 </div>

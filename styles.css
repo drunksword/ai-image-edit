@@ -606,8 +606,35 @@ body {
     font-weight: 600;
 }
 
-.message-image {
+/* Message Images Container */
+.message-images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.message-images.single .message-image {
     max-width: 100%;
+}
+
+.message-images.single .message-image img {
+    max-width: 100%;
+    max-height: 400px;
+}
+
+.message-images.multiple .message-image {
+    flex: 0 0 auto;
+}
+
+.message-images.multiple .message-image img {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+}
+
+.message-image {
+    position: relative;
     border-radius: var(--border-radius);
     overflow: hidden;
     border: 1px solid var(--border-color);
@@ -615,10 +642,57 @@ body {
 
 .message-image img {
     display: block;
-    max-width: 100%;
-    max-height: 400px;
     object-fit: contain;
     background: var(--bg-tertiary);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.message-image:hover img {
+    opacity: 0.9;
+}
+
+/* Image overlay actions */
+.image-overlay-actions {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px;
+    background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%);
+    opacity: 0;
+    transition: var(--transition-fast);
+}
+
+.message-image:hover .image-overlay-actions {
+    opacity: 1;
+}
+
+.image-overlay-btn {
+    width: 36px;
+    height: 36px;
+    background: rgba(255,255,255,0.2);
+    backdrop-filter: blur(4px);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition-fast);
+}
+
+.image-overlay-btn:hover {
+    background: var(--accent-primary);
+}
+
+.image-overlay-btn svg {
+    width: 18px;
+    height: 18px;
 }
 
 .message-image-actions {
@@ -700,23 +774,25 @@ body {
     margin: 0 auto;
 }
 
-/* Image Preview */
+/* Image Preview (Multiple) */
 .image-preview-container {
     display: none;
     margin-bottom: 12px;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
 .image-preview-container.active {
-    display: block;
+    display: flex;
 }
 
-.image-preview {
+.image-preview-item {
     position: relative;
-    display: inline-block;
     border-radius: var(--border-radius);
     overflow: hidden;
     border: 2px solid var(--accent-primary);
     animation: previewIn 0.2s ease;
+    flex-shrink: 0;
 }
 
 @keyframes previewIn {
@@ -730,19 +806,19 @@ body {
     }
 }
 
-.image-preview img {
+.image-preview-item img {
     display: block;
-    max-width: 200px;
-    max-height: 150px;
+    width: 80px;
+    height: 80px;
     object-fit: cover;
 }
 
-.remove-image-btn {
+.image-preview-item .remove-image-btn {
     position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 28px;
-    height: 28px;
+    top: 4px;
+    right: 4px;
+    width: 22px;
+    height: 22px;
     background: rgba(0, 0, 0, 0.7);
     border: none;
     border-radius: 50%;
@@ -752,15 +828,46 @@ body {
     align-items: center;
     justify-content: center;
     transition: var(--transition-fast);
+    opacity: 0;
 }
 
-.remove-image-btn:hover {
+.image-preview-item:hover .remove-image-btn {
+    opacity: 1;
+}
+
+.image-preview-item .remove-image-btn:hover {
     background: rgba(239, 68, 68, 0.9);
 }
 
-.remove-image-btn svg {
-    width: 16px;
-    height: 16px;
+.image-preview-item .remove-image-btn svg {
+    width: 12px;
+    height: 12px;
+}
+
+/* Image count indicator on attach button */
+.image-count-indicator {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 18px;
+    height: 18px;
+    background: var(--accent-primary);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+}
+
+.image-count-indicator.full {
+    background: var(--accent-secondary);
+}
+
+.attach-btn {
+    position: relative;
 }
 
 /* Input Box */
@@ -1230,6 +1337,21 @@ body {
     .message-text {
         padding: 12px 14px;
         font-size: 0.9rem;
+    }
+    
+    /* Multiple images on mobile */
+    .image-preview-item img {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .message-images.multiple .message-image img {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .image-overlay-actions {
+        opacity: 1;
     }
 }
 
