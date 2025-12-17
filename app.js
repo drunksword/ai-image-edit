@@ -129,7 +129,7 @@ function setupEventListeners() {
         if (window.innerWidth <= 768 && 
             elements.sidebar.classList.contains('open') &&
             !elements.sidebar.contains(e.target) &&
-            e.target !== elements.menuBtn) {
+            !elements.menuBtn.contains(e.target)) {
             closeMobileSidebar();
         }
     });
