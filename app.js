@@ -456,12 +456,7 @@ function handleInputChange() {
 }
 
 function handleKeyDown(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        if (!elements.sendBtn.disabled) {
-            sendMessage();
-        }
-    }
+    // Allow Enter for newline, no auto-send
 }
 
 function autoResizeTextarea() {
